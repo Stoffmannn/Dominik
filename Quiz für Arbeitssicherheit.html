@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <title>Sicherheitsquiz</title>
+  <style>
+    body { font-family: Arial, sans-serif; margin: 20px; background: #f4f4f4; }
+    .container { max-width: 600px; margin: auto; background: white; padding: 20px; border-radius: 8px; box-shadow: 0 0 10px rgba(0,0,0,0.1); }
+    .hidden { display: none; }
+    h1, h2 { text-align: center; }
+    button { padding: 10px 20px; margin-top: 10px; }
+    .leaderboard { margin-top: 20px; }
+    .answer-button { display: block; width: 100%; margin: 5px 0; padding: 10px; text-align: left; border: 1px solid #ccc; background-color: #f9f9f9; border-radius: 4px; cursor: pointer; }
+    .answer-button.selected { background-color: #c8e6c9; border-color: #2e7d32; }
+    .podium { display: flex; justify-content: center; align-items: flex-end; margin-top: 20px; }
+    .podium div { width: 100px; text-align: center; margin: 0 10px; }
+    .first { background: gold; padding: 10px; border-radius: 6px; }
+    .second { background: silver; padding: 10px; border-radius: 6px; }
+    .third { background: #cd7f32; padding: 10px; border-radius: 6px; }
+  </style>
+</head>
+<body>
+<div class="container">
+  <h1>Sicherheitsquiz</h1>
+
+  <div id="startScreen">
+    <h2>Bitte gib deinen Namen ein:</h2>
+    <input type="text" id="username" placeholder="Dein Name">
+    <button onclick="startQuiz()">Starten</button>
+  </div>
+
+  <div id="quizScreen" class="hidden">
+    <h2 id="question"></h2>
+    <div id="answers"></div>
+    <button onclick="nextQuestion()">Nächste Frage</button>
+  </div>
+
+  <div id="endScreen" class="hidden">
+    <h2>Quiz beendet!</h2>
+    <p id="score"></p>
+    <h3>Rangliste:</h3>
+    <div class="podium" id="podium"></div>
+    <ol id="leaderboard"></ol>
+    <button onclick="location.reload()">Neu starten</button>
+  </div>
+</div>
+
+<script>
+const questions = [
+  {
+    q: "Was bedeutet PSA?",
+    a: ["Persönliche Schutzkleidung am Arbeitsplatz", "Persönliche Schutzausrüstung", "Präventive Sicherheitsaktionen"],
+    correct: 1
+  },
+  {
+    q: "Was solltest du tun, wenn du einen Beinaheunfall beobachtest?",
+    a: ["Nichts, es ist ja nichts passiert", "Nur dem Kollegen Bescheid sagen", "Den Vorfall sofort melden"],
+    correct: 2
+  },
+  {
+    q: "Welche Farbe haben Warnwesten meist?",
+    a: ["Blau", "Gelb oder Orange", "Rot"],
+    correct: 1
+  },
+  {
+    q: "Was ist das Ziel einer Gefährdungsbeurteilung?",
+    a: ["Gefahren erkennen und Maßnahmen ableiten", "Unfälle dokumentieren", "Schuldige finden"],
+    correct: 0
+  },
+  {
+    q: "Was ist ein Beispiel für organisatorische Schutzmaßnahmen?",
+    a: ["Schutzhandschuhe tragen", "Maschinenabdeckungen anbringen", "Sicherheitsunterweisungen durchführen"],
+    correct: 2
+  }
+];
+
+let currentQuestion = 0;
+let score = 0;
+let user = "";
+let selectedAnswer = null;
+let leaderboard = JSON.parse(localStorage.getItem("leaderboard")) || [];
+
+function startQuiz() {
+  user = document.getElementById("username").value.trim();
+  if (!user) return alert("Bitte gib deinen Namen ein.");
+
+  document.getElementById("startScreen").classList.add("hidden");
+  document.getElementById("quizScreen").classList.remove("hidden");
+  showQuestion();
+}
+
+function showQuestion() {
+  selectedAnswer = null;
+  const q = questions[currentQuestion];
+  document.getElementById("question").textContent = q.q;
+  const answersDiv = document.getElementById("answers");
+  answersDiv.innerHTML = "";
+  q.a.forEach((answer, index) => {
+    const btn = document.createElement("button");
+    btn.textContent = answer;
+    btn.className = "answer-button";
+    btn.onclick = () => selectAnswer(index, btn);
+    answersDiv.appendChild(btn);
+  });
+}
+
+function selectAnswer(index, btn) {
+  selectedAnswer = index;
+  document.querySelectorAll(".answer-button").forEach(b => b.classList.remove("selected"));
+  btn.classList.add("selected");
+}
+
+function nextQuestion() {
+  if (selectedAnswer === null) {
+    alert("Bitte wähle eine Antwort aus.");
+    return;
+  }
+  if (selectedAnswer === questions[currentQuestion].correct) score++;
+  currentQuestion++;
+  if (currentQuestion >= questions.length) endQuiz();
+  else showQuestion();
+}
+
+function endQuiz() {
+  document.getElementById("quizScreen").classList.add("hidden");
+  document.getElementById("endScreen").classList.remove("hidden");
+  document.getElementById("score").textContent = `${user}, du hast ${score} von ${questions.length} Punkten erreicht.`;
+
+  leaderboard.push({ name: user, points: score });
+  leaderboard.sort((a, b) => b.points - a.points);
+  leaderboard = leaderboard.slice(0, 10);
+  localStorage.setItem("leaderboard", JSON.stringify(leaderboard));
+
+  const podiumDiv = document.getElementById("podium");
+  podiumDiv.innerHTML = "";
+  if (leaderboard[1]) podiumDiv.innerHTML += `<div class='second'>2. ${leaderboard[1].name}<br>${leaderboard[1].points} P</div>`;
+  if (leaderboard[0]) podiumDiv.innerHTML += `<div class='first'>1. ${leaderboard[0].name}<br>${leaderboard[0].points} P</div>`;
+  if (leaderboard[2]) podiumDiv.innerHTML += `<div class='third'>3. ${leaderboard[2].name}<br>${leaderboard[2].points} P</div>`;
+
+  const list = document.getElementById("leaderboard");
+  list.innerHTML = "";
+  leaderboard.slice(3).forEach((entry, index) => {
+    const li = document.createElement("li");
+    li.textContent = `${index + 4}. ${entry.name}: ${entry.points} Punkte`;
+    list.appendChild(li);
+  });
+}
+</script>
+</body>
+</html>
